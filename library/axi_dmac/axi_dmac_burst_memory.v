@@ -48,6 +48,8 @@ module axi_dmac_burst_memory #(
   input [DATA_WIDTH_SRC-1:0] src_data,
   input src_data_last,
 
+  output [ID_WIDTH-1:0] src_data_request_id,
+
   input dest_clk,
   input dest_reset,
 
@@ -159,6 +161,8 @@ end endgenerate
 assign src_beat = src_mem_data_valid & src_mem_data_ready;
 assign src_last_beat = src_beat & src_mem_data_last;
 assign src_waddr = {src_id_reduced,src_beat_counter};
+
+assign src_data_request_id = src_dest_id;
 
 axi_dmac_resize_src #(
   .DATA_WIDTH_SRC (DATA_WIDTH_SRC),
