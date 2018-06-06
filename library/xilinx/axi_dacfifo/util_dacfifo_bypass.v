@@ -40,7 +40,7 @@ module util_dacfifo_bypass #(
   parameter   DAC_DATA_WIDTH = 64,
   parameter   DMA_DATA_WIDTH = 64) (
 
-  // dma fifo interface
+  // DMA FIFO interface
 
   input                               dma_clk,
   input       [(DMA_DATA_WIDTH-1):0]  dma_data,
@@ -52,7 +52,7 @@ module util_dacfifo_bypass #(
 
   input                               dma_xfer_req,
 
-  // dac fifo interface
+  // DAC FIFO interface
 
   input                               dac_clk,
   input                               dac_rst,
@@ -99,14 +99,13 @@ module util_dacfifo_bypass #(
   wire    [(DAC_DATA_WIDTH-1):0]        dac_mem_rdata_s;
   wire    [DMA_ADDRESS_WIDTH:0]         dma_address_diff_s;
   wire    [DAC_ADDRESS_WIDTH:0]         dac_address_diff_s;
-  wire                                  dac_mem_empty_s;
 
   wire    [(DMA_ADDRESS_WIDTH-1):0]     dma_mem_waddr_b2g_s;
   wire    [(DAC_ADDRESS_WIDTH-1):0]     dac_mem_raddr_b2g_s;
   wire    [(DAC_ADDRESS_WIDTH-1):0]     dma_mem_raddr_m2_g2b_s;
   wire    [(DMA_ADDRESS_WIDTH-1):0]     dac_mem_waddr_m2_g2b_s;
 
-  // An asymmetric memory to transfer data from DMAC interface to DAC interface
+  // an asymmetric memory, storage element of the FIFO
 
   ad_mem_asym #(
     .A_ADDRESS_WIDTH (DMA_ADDRESS_WIDTH),
@@ -122,14 +121,14 @@ module util_dacfifo_bypass #(
     .addrb (dac_mem_raddr),
     .doutb (dac_mem_rdata_s));
 
-  // dma reset is brought from dac domain
+  // DMA reset is brought from dac domain
 
   always @(posedge dma_clk) begin
     dma_rst_m1 <= dac_rst;
     dma_rst <= dma_rst_m1;
   end
 
-  // Write address generation for the asymmetric memory
+  // write address generation for the asymmetric FIFO
 
   assign dma_mem_wea_s = dma_xfer_req & dma_valid & dma_ready;
 
@@ -151,7 +150,7 @@ module util_dacfifo_bypass #(
     .din (dma_mem_waddr),
     .dout (dma_mem_waddr_b2g_s));
 
-  // The memory module request data until reaches the high threshold.
+  // FIFO request data until reaches the high threshold.
 
   always @(posedge dma_clk) begin
     if (dma_rst == 1'b1) begin
@@ -179,7 +178,7 @@ module util_dacfifo_bypass #(
     .din (dma_mem_raddr_m2),
     .dout (dma_mem_raddr_m2_g2b_s));
 
-  // relative address offset on dma domain
+  // relative address offset on DMA domain
   assign dma_address_diff_s = {1'b1, dma_mem_waddr} - dma_mem_raddr_s;
   assign dma_mem_raddr_s = (DMA_DATA_WIDTH>DAC_DATA_WIDTH) ?
                                 ((MEM_RATIO == 1) ? (dma_mem_raddr) :
@@ -190,7 +189,7 @@ module util_dacfifo_bypass #(
                                  (MEM_RATIO == 4) ? ({dma_mem_raddr, 2'b0}) : ({dma_mem_raddr, 3'b0}));
 
 
-  // relative address offset on dac domain
+  // relative address offset on DAC domain
   assign dac_address_diff_s = {1'b1, dac_mem_waddr_s} - dac_mem_raddr;
   assign dac_mem_waddr_s = (DAC_DATA_WIDTH>DMA_DATA_WIDTH) ?
                                 ((MEM_RATIO == 1) ? (dac_mem_waddr) :
@@ -200,7 +199,7 @@ module util_dacfifo_bypass #(
                                  (MEM_RATIO == 2) ? ({dac_mem_waddr, 1'b0}) :
                                  (MEM_RATIO == 4) ? ({dac_mem_waddr, 2'b0}) : ({dac_mem_waddr, 3'b0}));
 
-  // Read address generation for the asymmetric memory
+  // read address generation for the asymmetric FIFO
 
   assign dac_mem_empty_s = (dac_address_diff_s[DAC_ADDRESS_WIDTH-1:0] == {DAC_ADDRESS_WIDTH{1'b0}}) ? 1'b1 : 1'b0;
   assign dac_mem_rea_s = dac_valid & !dac_mem_empty_s;
@@ -228,7 +227,7 @@ module util_dacfifo_bypass #(
     .din (dac_mem_raddr),
     .dout (dac_mem_raddr_b2g_s));
 
-  // The memory module is ready if it's not empty
+  // transfer the write address into the DAC's clock domain
 
   always @(posedge dac_clk) begin
     if (dac_rst == 1'b1) begin
