@@ -165,7 +165,11 @@ module dmac_request_arb #(
   input src_resetn,
   output src_ext_resetn,
   input src_enable,
-  output src_enabled
+  output src_enabled,
+
+  // Diagnostics interface
+  output [15:0] dest_diag_level,
+  output [7:0] dest_diag_level_bursts
 );
 
 localparam DMA_TYPE_MM_AXI = 0;
@@ -764,7 +768,10 @@ axi_dmac_burst_memory #(
 
   .dest_request_id(dest_request_id),
   .dest_data_request_id(dest_data_request_id),
-  .dest_data_response_id(dest_data_response_id)
+  .dest_data_response_id(dest_data_response_id),
+
+  .dest_diag_level(dest_diag_level),
+  .dest_diag_level_bursts(dest_diag_level_bursts)
 );
 
 axi_register_slice #(

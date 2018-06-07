@@ -160,7 +160,11 @@ module axi_dmac_transfer #(
   output [ID_WIDTH-1:0] dbg_src_address_id,
   output [ID_WIDTH-1:0] dbg_src_data_id,
   output [ID_WIDTH-1:0] dbg_src_response_id,
-  output [11:0] dbg_status
+  output [11:0] dbg_status,
+
+  // Diagnostics interface
+  output [15:0] dest_diag_level,
+  output [7:0] dest_diag_level_bursts
 );
 
 localparam DMA_TYPE_MM_AXI = 0;
@@ -413,7 +417,10 @@ dmac_request_arb #(
   .dbg_src_request_id(dbg_src_request_id),
   .dbg_src_address_id(dbg_src_address_id),
   .dbg_src_data_id(dbg_src_data_id),
-  .dbg_src_response_id(dbg_src_response_id)
+  .dbg_src_response_id(dbg_src_response_id),
+
+  .dest_diag_level(dest_diag_level),
+  .dest_diag_level_bursts(dest_diag_level_bursts)
 );
 
 endmodule

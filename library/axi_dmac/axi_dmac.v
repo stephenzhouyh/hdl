@@ -211,7 +211,11 @@ module axi_dmac #(
   output                                   fifo_rd_valid,
   output [DMA_DATA_WIDTH_DEST-1:0]         fifo_rd_dout,
   output                                   fifo_rd_underflow,
-  output                                   fifo_rd_xfer_req
+  output                                   fifo_rd_xfer_req,
+
+  // Diagnostics interface
+  output [15:0] dest_diag_level,
+  output [7:0] dest_diag_level_bursts
 );
 
 
@@ -532,7 +536,10 @@ axi_dmac_transfer #(
   .dbg_src_address_id(src_address_id),
   .dbg_src_data_id(src_data_id),
   .dbg_src_response_id(src_response_id),
-  .dbg_status(dbg_status)
+  .dbg_status(dbg_status),
+
+  .dest_diag_level(dest_diag_level),
+  .dest_diag_level_bursts(dest_diag_level_bursts)
 );
 
 assign m_dest_axi_arvalid = 1'b0;

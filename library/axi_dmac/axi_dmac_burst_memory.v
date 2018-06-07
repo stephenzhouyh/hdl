@@ -59,8 +59,14 @@ module axi_dmac_burst_memory #(
 
   output [ID_WIDTH-1:0] dest_request_id,
   input [ID_WIDTH-1:0] dest_data_request_id,
-  output [ID_WIDTH-1:0] dest_data_response_id
+  output [ID_WIDTH-1:0] dest_data_response_id,
+
+  // Diagnostics interface
+  output [15:0] dest_diag_level,
+  output [7:0] dest_diag_level_bursts
 );
+
+localparam DIAG_PORT = 1;
 
 localparam DATA_WIDTH = DATA_WIDTH_SRC > DATA_WIDTH_DEST ?
   DATA_WIDTH_SRC : DATA_WIDTH_DEST;
@@ -97,7 +103,7 @@ reg [BURST_LEN_WIDTH-1:0] dest_burst_len;
 
 reg [ID_WIDTH-1:0] src_id = 'h0;
 reg [ID_WIDTH-1:0] src_id_next;
-reg [BURST_LEN_WIDTH-1:0] src_beat_counter = 'h00;
+reg [ADDRESS_WIDTH:0] src_beat_counter = 'h00;
 reg src_id_reduced_msb = 1'b0;
 
 wire [ID_WIDTH-2:0] src_id_reduced;
@@ -106,7 +112,7 @@ reg [ID_WIDTH-1:0] dest_id_next = 'h0;
 reg dest_id_reduced_msb_next = 1'b0;
 reg dest_id_reduced_msb = 1'b0;
 reg [ID_WIDTH-1:0] dest_id = 'h0;
-reg [BURST_LEN_WIDTH-1:0] dest_beat_counter = 'h00;
+reg [ADDRESS_WIDTH:0] dest_beat_counter = 'h00;
 
 wire [ID_WIDTH-2:0] dest_id_reduced_next;
 wire [ID_WIDTH-1:0] dest_id_next_inc;
@@ -134,7 +140,7 @@ reg [DATA_WIDTH-1:0] dest_mem_data = 'h0;
 assign src_beat = src_mem_data_valid;
 assign src_last_beat = src_beat & src_mem_data_last;
 
-assign src_waddr = {src_id_reduced,src_beat_counter};
+assign src_waddr = {src_id_reduced,src_beat_counter[BURST_LEN_WIDTH-1:0]};
 
 axi_dmac_resize_src #(
   .DATA_WIDTH_SRC (DATA_WIDTH_SRC),
@@ -187,7 +193,7 @@ end
 
 always @(posedge src_clk) begin
   if (src_last_beat == 1'b1) begin
-    burst_len_mem[src_id_reduced] <= src_beat_counter;
+    burst_len_mem[src_id_reduced] <= src_beat_counter[BURST_LEN_WIDTH-1:0];
   end
 end
 
@@ -195,11 +201,11 @@ assign dest_id_reduced_next = {dest_id_reduced_msb_next,dest_id_next[ID_WIDTH-3:
 assign dest_id_reduced = {dest_id_reduced_msb,dest_id[ID_WIDTH-3:0]};
 
 assign dest_ready = ~dest_mem_data_valid | dest_mem_data_ready;
-assign dest_last = dest_beat_counter == dest_burst_len;
+assign dest_last = dest_beat_counter[BURST_LEN_WIDTH-1:0] == dest_burst_len;
 
 assign dest_beat = dest_valid & dest_ready;
 assign dest_last_beat = dest_last & dest_beat;
-assign dest_raddr = {dest_id_reduced,dest_beat_counter};
+assign dest_raddr = {dest_id_reduced,dest_beat_counter[BURST_LEN_WIDTH-1:0]};
 
 assign dest_burst_ready = ~dest_valid | dest_last_beat;
 
@@ -322,5 +328,51 @@ sync_bits #(
 
 assign dest_request_id = dest_src_id;
 assign dest_data_response_id = dest_id;
+
+generate if (DIAG_PORT == 1) begin
+
+  reg [ADDRESS_WIDTH:0] _dest_diag_level = 'h0;
+
+  wire [ADDRESS_WIDTH:0] dest_src_beat_counter;
+
+  sync_gray #(
+    .DATA_WIDTH(ADDRESS_WIDTH + 1),
+    .ASYNC_CLK(ASYNC_CLK)
+  ) i_waddr_sync (
+    .in_clk(src_clk),
+    .in_resetn(~src_reset),
+    .out_clk(dest_clk),
+    .out_resetn(1'b1),
+    .in_count(src_beat_counter),
+    .out_count(dest_src_beat_counter)
+  );
+
+  // calculate buffer fullness in locations 
+  always @(posedge dest_clk) begin
+    if (dest_reset == 1'b1) begin
+      _dest_diag_level <= 'h0;
+    end else begin
+      _dest_diag_level <= dest_src_beat_counter - dest_beat_counter;
+    end
+  end
+
+  assign dest_diag_level = {{{16-ADDRESS_WIDTH}{1'b0}},_dest_diag_level};
+
+  // calculate buffer fullness in bursts
+  reg [ID_WIDTH-1:0] _dest_diag_level_bursts;
+  always @(posedge dest_clk) begin
+    if (dest_reset == 1'b1) begin
+      _dest_diag_level_bursts <= 'h0;
+    end else begin
+      _dest_diag_level_bursts <= g2b(dest_src_id) - g2b(dest_id);
+    end
+  end
+  assign dest_diag_level_bursts = {{{8-ID_WIDTH}{1'b0}},_dest_diag_level_bursts};
+
+end else begin
+  assign dest_diag_level = 'h0;
+  assign dest_diag_level_bursts = 'h0;
+end
+endgenerate
 
 endmodule
